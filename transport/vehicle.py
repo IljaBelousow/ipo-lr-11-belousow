@@ -1,10 +1,5 @@
 import random
-from transport.vehicle import Vehicle
-from transport.van import Van
-from transport.airplane import Airplane
 from transport.client import Client
-from main import save_transports
-from main import save_clients
 
 class Vehicle:
     def __init__(self, capacity):
