@@ -1,9 +1,8 @@
+import json
 from transport.vehicle import Vehicle
 from transport.van import Van
 from transport.airplane import Airplane
 from transport.client import Client
-from main import save_transports
-from main import save_clients
 
 class TransportCompany:
     def __init__(self, name):
@@ -13,6 +12,21 @@ class TransportCompany:
         self.name = name
         self.vehicles = []
         self.clients = []
+
+    def save_transports(self):
+        transports_data = []
+        for vehicle in self.vehicles:
+            vehicle_data = vehicle.__dict__.copy() 
+            vehicle_data['client_list'] = [client.name for client in vehicle.client_list]
+            transports_data.append(vehicle_data)
+        with open("transports.json", 'w', encoding='utf-8') as file:
+            json.dump(transports_data, file, ensure_ascii=False, indent=4)
+
+    def save_clients(self):
+        clients_data = [client.__dict__ for client in self.clients]
+        with open("clients.json", 'w', encoding='utf-8') as file:
+            json.dump(clients_data, file, ensure_ascii=False, indent=4)
+
 
     def add_vehicle(self, vehicle):
         if not isinstance(vehicle, Vehicle):
@@ -82,14 +96,3 @@ class TransportCompany:
 
                 
 
-    def save_transports(self):
-        transports_data = []
-        for vehicle in self.vehicles:
-            vehicle_data = vehicle.__dict__.copy() 
-            vehicle_data['client_list'] = [client.name for client in vehicle.client_list]  # Add client names
-            transports_data.append(vehicle_data)
-        save_transports(transports_data)
-
-    def save_clients(self):
-        clients_data = [client.__dict__ for client in self.clients]
-        save_clients(clients_data)
