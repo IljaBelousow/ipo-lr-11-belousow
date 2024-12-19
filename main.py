@@ -1,4 +1,4 @@
-import random
+
 import json
 from transport.client import Client
 from transport.vehicle import Vehicle
@@ -21,13 +21,7 @@ def load_data():
 
     return transports, clients
 
-def save_transports(transports):
-    with open("transports.json", 'w', encoding='utf-8') as file:
-        json.dump(transports, file, ensure_ascii=False, indent=4)
 
-def save_clients(clients):
-    with open("clients.json", 'w', encoding='utf-8') as file:
-        json.dump(clients, file, ensure_ascii=False, indent=4)
 
 def menu():
     print("""
@@ -61,7 +55,6 @@ def main():
 
     company.show_all_results()
 
-    save_clients([])
 
     brik_close = False 
 
