@@ -120,3 +120,83 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import flet as ft
+import json
+from transport.client import Client
+from transport.vehicle import Vehicle
+from transport.airplane import Airplane
+from transport.van import Van
+from transport.transportcompany import TransportCompany
+
+def main(page: ft.Page):
+    page.title = "Хз какая-то программа"
+    page.theme_mode = "dark"
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+
+    # Устанавливаем размер окна
+    page.window_width = 1000
+    page.window_height = 800
+
+    # Список для отображения добавленных клиентов
+    added_clients_list = ft.Container(
+        content=ft.ListView(
+            auto_scroll=True,
+            height=150,  # Устанавливаем высоту, чтобы отображать 5 строк
+            spacing=5,
+        ),
+        bgcolor=ft.colors.BLACK,  # Цвет фона контейнера
+    )
+
+    # Function to show messages in a dialog
+    def show_message_dialog(message):
+        message_dialog = ft.AlertDialog(
+            title=ft.Text("Сообщение"),
+            content=ft.Text(message),
+            actions=[
+                ft.ElevatedButton("Закрыть", on_click=lambda e: page.close(message_dialog)),
+            ],
+        )
+        page.open(message_dialog)
+
+    # Load data function
+    def load_data():
+        try:
+            with open("transports.json", 'r', encoding='utf-8') as file:
+                transports = json.load(file)
+        except FileNotFoundError:
+            transports = []
+
+        try:
+            with open("clients.json", 'r', encoding='utf-8') as file:
+                clients = json.load(file)
+        except FileNotFoundError:
+            clients = []
+
+        return transports, clients
+
+    transports, clients = load_data()
+    company = TransportCompany("Транспортная компания", show_message_dialog)  # Create company instance
+
+    # ... rest of your code ...
+
+    # Example of how to use show_message_dialog in other parts of your code
+    # show_message_dialog("Some message to display")
+
+ft.app(target=main, view=ft.AppView.FLET_APP)

@@ -7,6 +7,9 @@ from transport.van import Van
 from transport.transportcompany import TransportCompany
 
 def main(page: ft.Page):
+
+    
+
     page.title = "Хз какая-то программа"
     page.theme_mode = "dark"
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
@@ -14,6 +17,16 @@ def main(page: ft.Page):
     # Устанавливаем размер окна
     page.window_width = 1000
     page.window_height = 800
+
+# Список для отображения добавленных клиентов
+    added_clients_list = ft.Container(
+        content=ft.ListView(
+            auto_scroll=True,
+            height=150,  # Устанавливаем высоту, чтобы отображать 5 строк
+            spacing=5,
+        ),
+        bgcolor=ft.colors.BLACK,  # Цвет фона контейнера
+    )
 
     def load_data():
         try:
@@ -32,11 +45,26 @@ def main(page: ft.Page):
 
     transports, clients = load_data()
     company = TransportCompany("Транспортная компания")
-    
+
+# Отображение клиентов из clients.json
     for client in clients:
         client_obj = Client(client['name'], client['cargo_weight'], client['is_vip'])
         company.add_client(client_obj)
 
+        # Добавляем информацию о клиенте в список
+        added_clients_list.content.controls.append(
+            ft.Container(
+                content=ft.Row([
+                    ft.Text(client['name'], color="#fafafa"),  # Цвет текста
+                    ft.Text(str(client['cargo_weight']), color="#fafafa"),  # Цвет текста
+                    ft.Text("Да" if client['is_vip'] else "Нет", color="#fafafa"),  # Цвет текста
+                ]),
+                padding=10,
+                border_radius=5,
+            )
+        )
+
+# Отображение транспортных средств
     for transport in transports:
         if 'max_altitude' in transport:  
             vehicle = Airplane(transport['capacity'], transport['max_altitude'])
@@ -61,7 +89,7 @@ def main(page: ft.Page):
             height=100,
         )
     )
-    
+
     menu_list = {
         "1": "Добавить клиента", 
         "2": "Добавить транспорт", 
@@ -72,26 +100,163 @@ def main(page: ft.Page):
         "7": "Выйти из программы", 
     }
 
-    # Область для вывода значений
-    output_area = ft.Text("", size=20, color="#fafafa")
+    # Модальное окно для отображения всех результатов в таблице
+    def show_all_results_dialog():
+        # Создаем таблицу для отображения результатов
+        rows = []
+        
+        # Добавляем клиентов
+        for client in company.clients:
+            rows.append(
+                ft.DataRow(cells=[
+                    ft.DataCell(ft.Text(client.name)),
+                    ft.DataCell(ft.Text(str(client.cargo_weight))),
+                    ft.DataCell(ft.Text("Да" if client.is_vip else "Нет")),
+                    ft.DataCell(ft.Text("")),
+                    ft.DataCell(ft.Text("")),
+                ])
+            )
+        
+        # Добавляем транспортные средства
+        for vehicle in company.vehicles:
+            load_status = f"{vehicle.current_load}/{vehicle.capacity}"  # Assuming vehicles have current_load attribute
+            vehicle_type = vehicle.__class__.__name__  # Get the type of vehicle
+            rows.append(
+                ft.DataRow(cells=[
+                    ft.DataCell(ft.Text("")),
+                    ft.DataCell(ft.Text("")),
+                    ft.DataCell(ft.Text("")),
+                    ft.DataCell(ft.Text(vehicle_type)),  # Vehicle type
+                    ft.DataCell(ft.Text(load_status)),  # Display load status
+                ])
+            )
 
-    # Список для отображения добавленных клиентов
-    added_clients_list = ft.Container(
-        content=ft.ListView(
-            auto_scroll=True,
-            height=150,  # Устанавливаем высоту, чтобы отображать 5 строк
-            spacing=5,
-        ),
-        bgcolor=ft.colors.BLACK,  # Цвет фона контейнера
-    )
+        table = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("Имя клиента")),
+                ft.DataColumn(ft.Text("Вес груза")),
+                ft.DataColumn(ft.Text("VIP")),
+                ft.DataColumn(ft.Text("Тип транспорта")),
+                ft.DataColumn(ft.Text("Загруженность")),
+            ],
+            rows=rows
+        )
 
-    # При KeyError
-    error_dialog = ft.AlertDialog(
-        title=ft.Text("404 KeyError 404"),
-        content=ft.Text("Ошибка. Введите значение из Меню"),
-    )
+        dialog = ft.AlertDialog(
+            title=ft.Text("Все результаты"),
+            content=table,
+            actions=[
+                ft.ElevatedButton("Закрыть", on_click=lambda e: page.close(dialog)),
+            ],
+        )
+        page.open(dialog)
 
-    # Модальное окно для добавления клиента
+# Модальное окно для добавления транспортного средства
+    def add_vehicle_dialog(e):
+        vehicle_type_input = ft.Dropdown(
+            label="Тип транспорта",
+            options=[
+                ft.dropdown.Option("Самолет"),
+                ft.dropdown.Option("Фургон"),
+            ],
+            width=300
+        )
+        capacity_input = ft.TextField(label="Введите грузоподъемность", width=300)
+        max_altitude_input = ft.TextField(label="Максимальная высота полёта", width=300, visible=False)
+        is_refrigerated_input = ft.Checkbox(label="Холодильник", value=False)
+
+        def on_vehicle_type_change(e):
+            if vehicle_type_input.value == "Самолет":
+                max_altitude_input.visible = True
+                is_refrigerated_input.visible = False
+            else:
+                max_altitude_input.visible = False
+                is_refrigerated_input.visible = True
+            page.update()
+
+        vehicle_type_input.on_change = on_vehicle_type_change
+
+        dialog = ft.AlertDialog(
+            title=ft.Text("Добавить транспортное средство"),
+            content=ft.Column(
+                controls=[
+                    vehicle_type_input,
+                    capacity_input,
+                    max_altitude_input,
+                    is_refrigerated_input,
+                ],
+                spacing=10,
+            ),
+            actions=[
+                ft.ElevatedButton("Добавить", on_click=lambda e: add_vehicle(vehicle_type_input.value, capacity_input.value, max_altitude_input.value, is_refrigerated_input.value)),
+                ft.ElevatedButton("Отмена", on_click=lambda e: page.close(dialog)),
+            ],
+        )
+        page.open(dialog)
+
+    def add_vehicle(vehicle_type, capacity, max_altitude, is_refrigerated):
+        try:
+            capacity = float(capacity)
+            if vehicle_type == "Самолет":
+                max_altitude = float(max_altitude)
+                vehicle = Airplane(capacity, max_altitude)
+            else:
+                vehicle = Van(capacity, is_refrigerated)  
+                
+            company.add_vehicle(vehicle)
+            show_message_dialog("Транспортное средство добавлено.")
+        except ValueError as e:
+            show_error_dialog(str(e))  # Отображаем сообщение об ошибке
+
+
+# Модальное окно для удаления транспортного средства
+    def del_vehicle_dialog(e):
+        vehicle_id_input = ft.TextField(label="Введите ID транспортного средства для удаления", width=300)
+        dialog = ft.AlertDialog(
+            title=ft.Text("Удалить транспортное средство"),
+            content=ft.Column(
+                controls=[
+                    vehicle_id_input,
+                ],
+                spacing=10,
+            ),
+            actions=[
+                ft.ElevatedButton("Удалить", on_click=lambda e: del_vehicle(vehicle_id_input.value)),
+                ft.ElevatedButton("Отмена", on_click=lambda e: page.close(dialog)),
+            ],
+        )
+        page.open(dialog)
+
+    def del_vehicle(vehicle_id):
+        try:
+            vehicle_id = int(vehicle_id)
+            company.del_vehicle(vehicle_id)
+            show_message_dialog(f"Транспортное средство с ID {vehicle_id} удалено.")
+        except ValueError:
+            show_error_dialog("Введите корректный ID транспортного средства.")
+
+    def show_message_dialog(message):
+        message_dialog = ft.AlertDialog(
+            title=ft.Text("Сообщение"),
+            content=ft.Text(message),
+            actions=[
+                ft.ElevatedButton("Закрыть", on_click=lambda e: page.close(message_dialog)),
+            ],
+        )
+        page.open(message_dialog)
+
+
+    def show_error_dialog(message):
+        error_dialog = ft.AlertDialog(
+            title=ft.Text("Ошибка"),
+            content=ft.Text(message),
+            actions=[
+                ft.ElevatedButton("Закрыть", on_click=lambda e: page.close(error_dialog)),
+            ],
+        )
+        page.open(error_dialog)
+
+# Модальное окно для добавления клиента
     def add_client_dialog(e):
         name_input = ft.TextField(label="Введите имя клиента", width=300)
         cargo_weight_input = ft.TextField(label="Введите вес груза", width=300)
@@ -119,7 +284,7 @@ def main(page: ft.Page):
             cargo_weight = float(cargo_weight)
             client = Client(name, cargo_weight, is_vip)
             company.add_client(client)
-            output_area.value = "Клиент добавлен"
+            show_message_dialog("Клиент добавлен")
             
             # Добавляем информацию о клиенте в список
             added_clients_list.content.controls.append(
@@ -130,45 +295,94 @@ def main(page: ft.Page):
                         ft.Text("Да" if is_vip else "Нет", color="#fafafa"),  # Цвет текста
                     ]),
                     padding=10,
-                    bgcolor=ft.colors.PURPLE_900,  # Цвет фона контейнера
                     border_radius=5,
                 )
             )
             page.update()
         except ValueError:
-            output_area.value = "Введите нормальный вес груза"
-        
-        page.update()
+            show_error_dialog("Введите нормально")  # Вызов функции для отображения ошибки
 
-    # Выводит значение
-    def on_submit(e):
-        if user_input.value == "7":
-            output_area.value = "Закрыто"
-            page.window_close()
-            return
+# Модальное окно для удаления клиента
+    def del_client_dialog(e):
+        name_input = ft.TextField(label="Введите имя клиента для удаления", width=300)
+        dialog = ft.AlertDialog(
+            title=ft.Text("Удалить клиента"),
+            content=ft.Column(
+                controls=[
+                    name_input,
+                ],
+                spacing=10,
+            ),
+            actions=[
+                ft.ElevatedButton("Удалить", on_click=lambda e: del_client(name_input.value)),
+                ft.ElevatedButton("Отмена", on_click=lambda e: page.close(dialog)),
+            ],
+        )
+        page.open(dialog)
+
+    def del_client(name):
+        if company.del_client(name):  # Удаляем клиента из компании
+            show_message_dialog(f"Клиент '{name}' удален")
+            
+            # Обновляем список клиентов в added_clients_list
+            added_clients_list.content.controls = [
+                ft.Container(
+                    content=ft.Row([
+                        ft.Text(client.name, color="#fafafa"),
+                        ft.Text(str(client.cargo_weight), color="#fafafa"),
+                        ft.Text("Да" if client.is_vip else "Нет", color="#fafafa"),
+                    ]),
+                    padding=10,
+                    border_radius=5,
+                ) for client in company.clients  # Перебираем клиентов в компании
+            ]
+            page.update()  # Обновляем страницу после изменения списка клиентов
         else:
-            try:
-                output_area.value = f"Вы ввели: {menu_list[user_input.value]}"
-                if user_input.value == "1":
-                    add_client_dialog(e)
-            except KeyError:
-                output_area.value = "Поздравляю с ошибкой"
-                page.open(error_dialog)
-        
-        user_input.value = ""
-        page.update()
+            show_error_dialog(f"Клиент '{name}' не найден")
+            page.update()  # Обновляем страницу для отображения сообщения об ошибке
 
-    # Создание поля для ввода действия
+# Выводит значение
+    def on_submit(e):
+        try:
+            choice = int(user_input.value)  # Ввод в целое число
+            if choice == 1:
+                add_client_dialog(e)  # Для добавления клиента
+            elif choice == 2:
+                add_vehicle_dialog(e)  # Для добавления транспортного средства
+            elif choice == 3:
+                del_client_dialog(e)  # Для удаления клиента
+            elif choice == 4:
+                del_vehicle_dialog(e)  # Для удаления транспортного средства
+            elif choice == 5:
+                company.optimize_cargo_distribution()  # Распределяем грузы
+                show_message_dialog("Грузы распределены.")
+            elif choice == 6:
+                show_all_results_dialog()  # Отображаем все результаты в диалоговом окне
+            elif choice == 7:
+                show_message_dialog("Закрыто")
+                page.window_close()
+                return
+            else:
+                show_error_dialog("Введите число от 1 до 7")  # Ошибка для некорректного ввода
+        except ValueError:
+            show_error_dialog("Введите корректное число")  # Ошибка для некорректного ввода
+        except KeyError:
+            show_error_dialog("Ошибка. Введите значение из меню")  # Ошибка для некорректного ввода
+        finally:
+            user_input.value = ""  # Очищаем поле ввода
+            page.update()  # Обновляем страницу
+
+# Создание поля для ввода действия
     user_input = ft.TextField(
         label="Введите действие", 
         width=300, 
         multiline=True
     )
 
-    # Кнопка для отправки
+# Кнопка для отправки
     submit_button = ft.ElevatedButton(text="Отправить", on_click=on_submit)
 
-    # Выравнение по центру
+# Выравнение по центру
     input_row = ft.Row(
         [
             user_input, 
@@ -203,20 +417,13 @@ def main(page: ft.Page):
                     ],
                     alignment=ft.MainAxisAlignment.CENTER
                 ),
-                added_clients_list,  # Список с клиентами
+                # Список с клиентами
                 input_row,  # Кнопки ввода и вывода, выравненные по центру
-                ft.Row(     # Вывод значения
-                    [
-                        output_area,
-                    ],
-                    alignment=ft.MainAxisAlignment.CENTER
-                ),
                 ft.Row([menu_item], alignment=ft.MainAxisAlignment.CENTER), # Меню
             ],
             alignment=ft.MainAxisAlignment.START,  # Выравнивание по началу
         )
     )
-    
-    menu()
 
+    menu()
 ft.app(target=main, view=ft.AppView.FLET_APP)
